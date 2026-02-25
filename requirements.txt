@@ -1,0 +1,9 @@
+streamlit
+azure-cognitiveservices-speech
+pydub
+python-docx
+python-dotenv
+azure-identity
+requests
+azure-ai-inference
+openai==0.28

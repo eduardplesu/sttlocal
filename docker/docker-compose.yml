@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # 1. Speech-to-Text (STT) Containers for Multiple Languages
+
+  stt-ro:
+    container_name: stt-ro
+    image: mcr.microsoft.com/azure-cognitive-services/speechservices/speech-to-text:5.1.0-amd64-ro-ro
+    ports:
+      - "5103:5000"
+    environment:
+      - EULA=accept
+      - billing=${SPEECH_ENDPOINT}
+      - apiKey=${SPEECH_KEY}
+
+  stt-en:
+    container_name: stt-en
+    image: mcr.microsoft.com/azure-cognitive-services/speechservices/speech-to-text:5.0.3-preview-amd64-en-us
+    ports:
+      - "5104:5000"
+    environment:
+      - EULA=accept
+      - billing=${SPEECH_ENDPOINT}
+      - apiKey=${SPEECH_KEY}
+
+  # 2. Translator Container
+  azure-ai-translator:
+    container_name: azure-ai-translator
+    image: mcr.microsoft.com/azure-cognitive-services/translator/text-translation:latest
+    ports:
+      - "5108:5000"
+    environment:
+      - EULA=accept
+      - billing=${TRANSLATOR_ENDPOINT}
+      - apiKey=${TRANSLATOR_KEY}
+      - Languages=en,ro
+    # Resource limits in standard Compose are not enforced unless using swarm mode
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+
+  # 3. Streamlit App Container
+  streamlit-app:
+    container_name: streamlit-app
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8601:8501"
+    env_file:
+      - .env
+    environment:
+      # Use ws:// addresses for STT containers
+      - LOCAL_SPEECH_ENDPOINT_RO=ws://stt-ro:5000
+      - LOCAL_SPEECH_ENDPOINT_EN=ws://stt-en:5000
+  
+
+      # Translator is REST-based, so http:// is fine
+      - TRANSLATOR_ENDPOINT=http://azure-ai-translator:5000
+
+      # These values read from .env if present
+      - OPENAI_ENDPOINT=${OPENAI_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PHI4_ENDPOINT=${PHI4_ENDPOINT}
+      - PHI4_KEY=${PHI4_KEY}
+    depends_on:
+      - stt-ro
+      - stt-en
+      - azure-ai-translator
